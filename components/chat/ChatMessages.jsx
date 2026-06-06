@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 import useChatStore from "@/store/chatStore";
 
@@ -10,12 +10,24 @@ import {
 } from "@/services/chat";
 
 export default function ChatMessages() {
+  const messagesEndRef = useRef(null);
+
   const {
     messages,
     conversationId,
     currentUserId,
     addMessage,
   } = useChatStore();
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({
+      behavior: "smooth",
+    });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   useEffect(() => {
     if (!conversationId) return;
@@ -63,6 +75,7 @@ export default function ChatMessages() {
           </div>
         );
       })}
+      <div ref={messagesEndRef} />
     </div>
   );
 }

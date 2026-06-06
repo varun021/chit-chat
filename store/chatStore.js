@@ -3,18 +3,50 @@ import { create } from "zustand";
 const useChatStore = create((set) => ({
   currentUserId: null,
 
-  selectedUser: null,
+  conversations: [],
+  selectedConversation: null,
   conversationId: null,
   messages: [],
+
+  profiles: {},
 
   setCurrentUserId: (id) =>
     set({
       currentUserId: id,
     }),
 
-  setSelectedUser: (user) =>
+  setConversations: (conversations) =>
     set({
-      selectedUser: user,
+      conversations,
+    }),
+
+  addConversation: (conversation) =>
+    set((state) => {
+      const exists = state.conversations.some(
+        (conv) => conv.id === conversation.id
+      );
+
+      if (exists) {
+        return state;
+      }
+
+      return {
+        conversations: [conversation, ...state.conversations],
+      };
+    }),
+
+  updateConversation: (conversationId, updates) =>
+    set((state) => ({
+      conversations: state.conversations.map((conv) =>
+        conv.id === conversationId
+          ? { ...conv, ...updates }
+          : conv
+      ),
+    })),
+
+  setSelectedConversation: (conversation) =>
+    set({
+      selectedConversation: conversation,
     }),
 
   setConversationId: (id) =>
@@ -41,6 +73,22 @@ const useChatStore = create((set) => ({
         messages: [...state.messages, message],
       };
     }),
+
+  setProfiles: (profiles) =>
+    set({
+      profiles,
+    }),
+
+  updateProfile: (userId, profile) =>
+    set((state) => ({
+      profiles: {
+        ...state.profiles,
+        [userId]: {
+          ...state.profiles[userId],
+          ...profile,
+        },
+      },
+    })),
 }));
 
 export default useChatStore;
