@@ -7,9 +7,11 @@ import ChatSidebar from "@/components/chat/ChatSidebar";
 import ChatHeader from "@/components/chat/ChatHeader";
 import ChatMessages from "@/components/chat/ChatMessages";
 import ChatInput from "@/components/chat/ChatInput";
+import useNotifications from "@/hooks/useNotifications";
 
 export default function ChatPage() {
   usePresence();
+  useNotifications();
 
   const { selectedConversation } =
     useChatStore();

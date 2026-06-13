@@ -3,6 +3,7 @@ import { Toaster } from "react-hot-toast";
 import { cn } from "@/lib/utils";
 import "./globals.css";
 
+
 // Configure Public Sans as the primary design system font token
 const publicSans = Public_Sans({
   subsets: ["latin"],

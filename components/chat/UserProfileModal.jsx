@@ -1,14 +1,19 @@
 "use client";
 
-import { Circle, User } from "lucide-react";
+import { Circle, Calendar, Quote } from "lucide-react";
+
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
+
+import {
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+} from "@/components/ui/avatar";
 
 import { formatLastSeen } from "@/lib/formatters";
 
@@ -17,81 +22,80 @@ export default function UserProfileModal({ user, open, onOpenChange }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[92vw] sm:max-w-[400px] rounded-2xl p-0 overflow-hidden gap-0 border-border/60 bg-background shadow-lg">
-        {/* Hidden title for Screen Reader accessibility compliance */}
+      <DialogContent className="max-w-[92vw] sm:max-w-[400px] rounded-2xl p-0 overflow-hidden gap-0 border-border/60 bg-background shadow-xl">
         <DialogHeader className="sr-only">
           <DialogTitle>{user.username}'s Profile</DialogTitle>
         </DialogHeader>
 
-        {/* Decorative Modern Backdrop Banner */}
-        <div className="h-28 w-full bg-gradient-to-br from-primary/20 via-primary/5 to-muted/20 relative" />
+        {/* Minimal Banner Background */}
+        <div className="h-28 w-full bg-gradient-to-br from-primary/10 via-transparent to-muted/30" />
 
-        {/* Modal Inner Wrap Container */}
-        <div className="relative flex flex-col items-center px-5 pb-6 text-center">
-          
-          {/* Overlapping Floating Avatar Structure */}
-          <div className="absolute -top-12 z-10">
-            <Avatar className="h-24 w-24 border-4 border-background shadow-xl rounded-full">
-              <AvatarImage 
-                src={user.avatar_url || undefined} 
-                alt={user.username} 
-                className="object-cover"
-              />
+        <div className="relative flex flex-col items-center px-6 pb-6">
+          {/* Avatar Placement */}
+          <div className="absolute -top-12">
+            <Avatar className="h-24 w-24 border-4 border-background shadow-md">
+              <AvatarImage src={user.avatar_url || undefined} alt={user.username} className="object-cover" />
               <AvatarFallback className="bg-primary/10 text-primary text-2xl font-semibold">
-                {user.username?.[0]?.toUpperCase()}
+                {user.username?.charAt(0)?.toUpperCase()}
               </AvatarFallback>
             </Avatar>
           </div>
 
-          {/* Profile Identity Headers */}
-          <div className="mt-14 space-y-1 w-full">
-            <h2 className="text-xl font-bold tracking-tight text-foreground">
-              {user.username}
-            </h2>
-            
-            {user.full_name ? (
-              <p className="text-sm text-muted-foreground font-medium">
-                {user.full_name}
-              </p>
-            ) : (
-              <p className="text-xs text-muted-foreground/60 italic flex items-center justify-center gap-1">
-                <User className="h-3 w-3" /> No full name provided
-              </p>
-            )}
+          {/* Identity Handle */}
+          <div className="mt-14 text-center">
+            <h2 className="text-xl font-bold tracking-tight">@{user.username}</h2>
           </div>
 
-          {/* Real-Time Live Status Badge Area */}
+          {/* Real-time Presence State */}
           <div className="mt-3">
             {user.is_online ? (
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold ring-1 ring-emerald-500/20 select-none animate-pulse">
-                <Circle className="h-2 w-2 fill-current" />
-                <span>Active Now</span>
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-medium border border-emerald-500/10">
+                <Circle className="h-1.5 w-1.5 fill-current" />
+                Active Now
               </div>
             ) : (
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-muted text-muted-foreground text-xs font-medium ring-1 ring-border/40 select-none">
-                <Circle className="h-2 w-2 fill-muted-foreground/40 text-muted-foreground/40" />
-                <span>
-                  Last seen {user.last_seen ? formatLastSeen(user.last_seen) : "offline"}
-                </span>
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-medium">
+                <Circle className="h-1.5 w-1.5 fill-muted-foreground/30 text-muted-foreground/30" />
+                Last seen {user.last_seen ? formatLastSeen(user.last_seen) : "offline"}
               </div>
             )}
           </div>
 
-          {/* Conditional Segment Block: User Bio */}
-          {user.bio && (
-            <div className="w-full mt-6 space-y-3">
-              <Separator className="bg-border/60" />
-              
-              <div className="w-full rounded-xl bg-muted/30 border border-border/40 p-4 text-left backdrop-blur-sm">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground/90 mb-1.5 select-none">
-                  About Me
-                </h3>
-                <p className="text-sm text-foreground/90 leading-relaxed break-words whitespace-pre-wrap">
-                  {user.bio}
+          {/* Plain Status Box */}
+          <div className="w-full mt-5">
+            <div className="rounded-xl border bg-muted/20 p-4 text-center">
+              <div className="flex items-center justify-center gap-1.5 mb-1">
+                <Quote className="h-3.5 w-3.5 text-muted-foreground/60" />
+                <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground/60">
+                  Status
+                </span>
+              </div>
+              <p className="text-sm italic text-foreground/90">
+                {user.status || "No status text configured."}
+              </p>
+            </div>
+          </div>
+
+          {/* Simplified Timeline Metric */}
+          <div className="w-full mt-3">
+            <div className="rounded-xl border bg-muted/10 p-3 flex items-center gap-3">
+              <Calendar className="h-4 w-4 text-muted-foreground/60" />
+              <div className="space-y-0.5">
+                <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground/60">
+                  Member Since
+                </p>
+                <p className="text-xs font-medium text-foreground/80">
+                  {user.created_at
+                    ? new Date(user.created_at).toLocaleDateString(undefined, {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })
+                    : "Recent"}
                 </p>
               </div>
             </div>
-          )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>

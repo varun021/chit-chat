@@ -155,12 +155,16 @@ export async function getConversationWithUser(
       conversation_id,
       user_id,
       profiles (
-        id,
-        username,
-        avatar_url,
-        is_online,
-        last_seen
-      )
+      id,
+      username,
+      full_name,
+      avatar_url,
+      bio,
+      status,
+      created_at,
+      is_online,
+      last_seen
+    )
     `)
     .eq("conversation_id", conversationId)
     .neq("user_id", currentUserId);
@@ -231,9 +235,58 @@ export async function sendMessage({
     })
     .eq("id", conversationId);
 
+  try {
+    const { data: recipient } =
+      await supabase
+        .from("conversation_members")
+        .select(`
+          user_id,
+          profiles (
+            username,
+            fcm_token
+          )
+        `)
+        .eq(
+          "conversation_id",
+          conversationId
+        )
+        .neq("user_id", senderId)
+        .single();
+
+    if (
+      recipient?.profiles?.fcm_token
+    ) {
+      const {
+        data: senderProfile,
+      } = await supabase
+        .from("profiles")
+        .select("username")
+        .eq("id", senderId)
+        .single();
+
+      await sendPushNotification({
+        token:
+          recipient.profiles
+            .fcm_token,
+
+        title:
+          senderProfile?.username ||
+          "New Message",
+
+        body: trimmedMessage,
+
+        conversationId,
+      });
+    }
+  } catch (pushError) {
+    console.error(
+      "Push notification error:",
+      pushError
+    );
+  }
+
   return data;
 }
-
 /* =========================
    REALTIME
 ========================= */
@@ -413,7 +466,10 @@ export async function getCurrentProfile() {
 
   if (error) throw error;
 
-  return data;
+  return {
+    ...data,
+    email: user.email,
+  };
 }
 
 export async function updateProfile(data) {
@@ -577,4 +633,57 @@ export function unsubscribeTyping(
   supabase.removeChannel(
     channel
   );
+}
+
+export async function updateFCMToken(
+  token
+) {
+  const user =
+    await getCurrentUser();
+
+  if (!user) return;
+
+  const { error } =
+    await supabase
+      .from("profiles")
+      .update({
+        fcm_token: token,
+      })
+      .eq("id", user.id);
+
+  if (error) throw error;
+}
+
+
+export async function sendPushNotification({
+  token,
+  title,
+  body,
+  conversationId,
+}) {
+  try {
+    await fetch(
+      "/api/notifications/send",
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
+
+        body: JSON.stringify({
+          token,
+          title,
+          body,
+          conversationId,
+        }),
+      }
+    );
+  } catch (error) {
+    console.error(
+      "Push notification failed",
+      error
+    );
+  }
 }
