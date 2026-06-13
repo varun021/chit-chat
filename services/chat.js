@@ -260,7 +260,10 @@ export async function sendMessage({
         data: senderProfile,
       } = await supabase
         .from("profiles")
-        .select("username")
+        .select(`
+          username,
+          avatar_url
+        `)
         .eq("id", senderId)
         .single();
 
@@ -274,6 +277,10 @@ export async function sendMessage({
           "New Message",
 
         body: trimmedMessage,
+
+        avatarUrl:
+          senderProfile?.avatar_url ||
+          "",
 
         conversationId,
       });
@@ -659,27 +666,23 @@ export async function sendPushNotification({
   token,
   title,
   body,
+  avatarUrl,
   conversationId,
 }) {
   try {
-    await fetch(
-      "/api/notifications/send",
-      {
-        method: "POST",
-
-        headers: {
-          "Content-Type":
-            "application/json",
-        },
-
-        body: JSON.stringify({
-          token,
-          title,
-          body,
-          conversationId,
-        }),
-      }
-    );
+    await fetch("/api/notifications/send", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        token,
+        title,
+        body,
+        avatarUrl,
+        conversationId,
+      }),
+    });
   } catch (error) {
     console.error(
       "Push notification failed",

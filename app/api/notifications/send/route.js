@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-
 import { messaging } from "@/lib/firebase-admin";
 
 export async function POST(request) {
@@ -8,29 +7,19 @@ export async function POST(request) {
       token,
       title,
       body,
+      avatarUrl,
       conversationId,
     } = await request.json();
-
-    if (!token) {
-      return NextResponse.json(
-        {
-          error:
-            "Missing FCM token",
-        },
-        { status: 400 }
-      );
-    }
 
     const response =
       await messaging.send({
         token,
 
-        notification: {
+        data: {
           title,
           body,
-        },
-
-        data: {
+          avatarUrl:
+            avatarUrl || "",
           conversationId:
             String(
               conversationId
@@ -43,12 +32,14 @@ export async function POST(request) {
       response,
     });
   } catch (error) {
-    console.error(error);
+    console.error(
+      "Notification Error:",
+      error
+    );
 
     return NextResponse.json(
       {
-        error:
-          error.message,
+        error: error.message,
       },
       { status: 500 }
     );

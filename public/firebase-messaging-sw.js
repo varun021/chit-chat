@@ -21,11 +21,29 @@ const messaging =
 messaging.onBackgroundMessage(
   (payload) => {
     self.registration.showNotification(
-      payload.notification.title,
+      payload.data.title,
       {
         body:
-          payload.notification.body,
-        icon: "/icon-192.png",
+          payload.data.body,
+
+        icon:
+          payload.data
+            .avatarUrl ||
+          "/icon-192.png",
+
+        image:
+          payload.data
+            .avatarUrl ||
+          undefined,
+
+        badge:
+          "/icon-192.png",
+
+        data: {
+          conversationId:
+            payload.data
+              .conversationId,
+        },
       }
     );
   }
