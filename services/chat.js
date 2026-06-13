@@ -280,36 +280,50 @@ export function subscribeToConversations(
   currentUserId,
   callback
 ) {
+  const existingChannel =
+    supabase
+      .getChannels()
+      .find(
+        (channel) =>
+          channel.topic ===
+          `realtime:conversations-${currentUserId}`
+      );
+
+  if (existingChannel) {
+    supabase.removeChannel(
+      existingChannel
+    );
+  }
+
   const channel = supabase
-    .channel(`conversations-${currentUserId}`)
+    .channel(
+      `conversations-${currentUserId}`
+    )
     .on(
       "postgres_changes",
       {
         event: "*",
         schema: "public",
-        table: "conversation_members",
+        table:
+          "conversation_members",
         filter: `user_id=eq.${currentUserId}`,
       },
-      () => {
-        callback();
-      }
+      callback
     )
     .on(
       "postgres_changes",
       {
         event: "UPDATE",
         schema: "public",
-        table: "conversations",
+        table:
+          "conversations",
       },
-      () => {
-        callback();
-      }
+      callback
     )
     .subscribe();
 
   return channel;
 }
-
 export function unsubscribe(
   channel
 ) {
@@ -544,4 +558,23 @@ export async function sendTypingEvent(
       isTyping,
     },
   });
+}
+
+export function unsubscribeTyping(
+  conversationId
+) {
+  const channel =
+    typingChannels[
+      conversationId
+    ];
+
+  if (!channel) return;
+
+  delete typingChannels[
+    conversationId
+  ];
+
+  supabase.removeChannel(
+    channel
+  );
 }

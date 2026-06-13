@@ -33,7 +33,7 @@ export default function UserProfileModal({ user, open, onOpenChange }) {
           <div className="absolute -top-12 z-10">
             <Avatar className="h-24 w-24 border-4 border-background shadow-xl rounded-full">
               <AvatarImage 
-                src={user.avatar_url || ""} 
+                src={user.avatar_url || undefined} 
                 alt={user.username} 
                 className="object-cover"
               />

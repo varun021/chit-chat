@@ -1,12 +1,33 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Search, MessageSquareDashed, UserX } from "lucide-react";
+import { useEffect, useState, useRef } from "react";
+import Link from "next/link";
+import { 
+  Search, 
+  MessageSquareDashed, 
+  UserX, 
+  Settings, 
+  LogOut, 
+  User, 
+  SlidersHorizontal,
+  X 
+} from "lucide-react";
+
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
 import useChatStore from "@/store/chatStore";
 
 import {
@@ -20,6 +41,9 @@ import {
   subscribeToProfiles,
   unsubscribe,
 } from "@/services/chat";
+
+import { createClient } from "@/lib/client";
+import { useRouter } from "next/navigation";
 
 function formatTime(dateString) {
   if (!dateString) return "";
@@ -42,18 +66,23 @@ function formatTime(dateString) {
   });
 }
 
-function truncateMessage(message, maxLength = 35) {
+function truncateMessage(message, maxLength = 32) {
   if (!message) return "";
   return message.length > maxLength
     ? message.substring(0, maxLength) + "..."
     : message;
 }
 
+
+
 export default function ChatSidebar() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
+
+  // Storing latest query value in a ref to avoid asynchronous state race conditions
+  const latestQueryRef = useRef(searchQuery);
 
   const {
     currentUserId,
@@ -66,6 +95,15 @@ export default function ChatSidebar() {
     setMessages,
     updateProfile,
   } = useChatStore();
+
+  const supabase = createClient();
+const router = useRouter();
+
+async function handleLogout() {
+  await supabase.auth.signOut();
+
+  router.replace("/auth");
+}
 
   useEffect(() => {
     let channel;
@@ -135,6 +173,7 @@ export default function ChatSidebar() {
 
   async function handleSearch(query) {
     setSearchQuery(query);
+    latestQueryRef.current = query;
 
     if (!query.trim()) {
       setSearchResults([]);
@@ -145,14 +184,26 @@ export default function ChatSidebar() {
     setIsSearching(true);
     try {
       const results = await searchUsers(query, currentUserId);
-      setSearchResults(results);
+      // Verify query context remains matched before parsing mutation updates
+      if (latestQueryRef.current === query) {
+        setSearchResults(results);
+      }
     } catch (error) {
       console.error("Failed to search users:", error);
       setSearchResults([]);
     } finally {
-      setIsSearching(false);
+      if (latestQueryRef.current === query) {
+        setIsSearching(false);
+      }
     }
   }
+
+  const handleClearSearch = () => {
+    setSearchQuery("");
+    setSearchResults([]);
+    setIsSearching(false);
+    latestQueryRef.current = "";
+  };
 
   async function handleSelectUser(user) {
     try {
@@ -170,8 +221,7 @@ export default function ChatSidebar() {
       const messages = await getMessages(conversationId);
       setMessages(messages);
 
-      setSearchQuery("");
-      setSearchResults([]);
+      handleClearSearch();
 
       const updatedConversations = await getUserConversations(currentUserId);
       const withDetails = await Promise.all(
@@ -207,24 +257,79 @@ export default function ChatSidebar() {
   const displayResults = searchQuery.trim() ? searchResults : [];
 
   return (
-    <aside className="flex flex-col h-full w-full md:w-80 lg:w-96 border-r bg-background shrink-0">
+    <aside className="flex flex-col h-full w-full md:w-80 lg:w-96 border-r bg-background shrink-0 select-none">
+      {/* Header Container Area */}
       <div className="p-4 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold tracking-tight">ChitChat</h2>
+          <h2 className="text-xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
+            ChitChat
+          </h2>
+          
+          {/* Integrated Settings Dropdown Menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-9 w-9 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+              >
+                <Settings className="h-4 w-4" />
+                <span className="sr-only">Open settings menu</span>
+              </Button>
+            </DropdownMenuTrigger>
+            
+            <DropdownMenuContent align="end" className="w-56 rounded-xl shadow-lg border-border/60">
+              <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 py-2">
+                My Account
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+             <DropdownMenuItem asChild>
+  <Link
+    href="/profile"
+    className="cursor-pointer py-2 px-3 rounded-lg text-sm gap-2 flex items-center"
+  >
+    <User className="h-4 w-4 opacity-70" />
+    <span>Profile Details</span>
+  </Link>
+</DropdownMenuItem>
+              
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="cursor-pointer py-2 px-3 rounded-lg text-sm gap-2 text-destructive focus:text-destructive focus:bg-destructive/10">
+               <Button
+                variant="destructive"
+                onClick={handleLogout}
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Logout
+              </Button>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
+
+        {/* Input Wrapper Layer */}
         <div className="relative">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground/70" />
           <Input
-            className="pl-9 bg-muted/50 focus-visible:ring-1"
+            className="pl-9 pr-8 bg-muted/40 rounded-xl border-border/50 focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:bg-background transition-all h-10 text-sm"
             placeholder="Search users..."
             value={searchQuery}
             onChange={(e) => handleSearch(e.target.value)}
           />
+          {searchQuery && (
+            <button
+              onClick={handleClearSearch}
+              className="absolute right-2.5 top-2.5 p-0.5 rounded-full hover:bg-muted text-muted-foreground/70 hover:text-foreground transition-colors"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          )}
         </div>
       </div>
       
-      <Separator />
+      <Separator className="opacity-60" />
 
+      {/* Main Conversation Logs / Results Window */}
       <ScrollArea className="flex-1">
         {isInitializing ? (
           <div className="p-4 space-y-4">
@@ -232,35 +337,35 @@ export default function ChatSidebar() {
               <div key={i} className="flex items-center gap-3">
                 <Skeleton className="h-10 w-10 rounded-full" />
                 <div className="space-y-2 flex-1">
-                  <Skeleton className="h-4 w-1/2" />
-                  <Skeleton className="h-3 w-3/4" />
+                  <Skeleton className="h-4 w-1/3" />
+                  <Skeleton className="h-3 w-2/3" />
                 </div>
               </div>
             ))}
           </div>
         ) : searchQuery.trim() ? (
           displayResults.length === 0 ? (
-            <div className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground">
-              <UserX className="h-8 w-8 mb-2 opacity-50" />
-              <p className="text-sm">
-                {isSearching ? "Searching..." : "No users found"}
+            <div className="flex flex-col items-center justify-center py-12 px-4 text-center text-muted-foreground">
+              <UserX className="h-8 w-8 mb-2 opacity-40 stroke-[1.5]" />
+              <p className="text-sm font-medium">
+                {isSearching ? "Searching directories..." : "No users matched"}
               </p>
             </div>
           ) : (
-            <div className="p-2">
-              <div className="px-2 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Users
+            <div className="p-2 space-y-0.5">
+              <div className="px-3 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider select-none">
+                Search Results
               </div>
               {displayResults.map((user) => (
                 <button
                   key={user.id}
                   onClick={() => handleSelectUser(user)}
-                  className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-colors text-left"
+                  className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-accent hover:text-accent-foreground transition-all text-left"
                 >
-                  <div className="relative flex-shrink-0">
-                    <Avatar className="h-10 w-10 border border-border/50">
-                      <AvatarImage src={user.avatar_url || ""} alt={user.username} />
-                      <AvatarFallback className="bg-primary/10 text-primary">
+                  <div className="relative shrink-0">
+                    <Avatar className="h-10 w-10 border border-border/40">
+                      <AvatarImage src={user.avatar_url || undefined} alt={user.username} />
+                      <AvatarFallback className="bg-primary/10 text-primary font-medium">
                         {user.username?.[0]?.toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
@@ -269,11 +374,11 @@ export default function ChatSidebar() {
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate leading-none mb-1">
+                    <p className="text-sm font-semibold truncate leading-none mb-1.5">
                       {user.username}
                     </p>
-                    <p className="text-xs text-muted-foreground">
-                      {user.is_online ? "Online" : "Offline"}
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      {user.is_online ? "Active now" : "Offline"}
                     </p>
                   </div>
                 </button>
@@ -281,10 +386,14 @@ export default function ChatSidebar() {
             </div>
           )
         ) : conversations.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-40 text-center text-muted-foreground p-4">
-            <MessageSquareDashed className="h-10 w-10 mb-3 opacity-20" />
-            <p className="text-sm">No conversations yet.</p>
-            <p className="text-xs mt-1">Search for a user to start chatting!</p>
+          <div className="flex flex-col items-center justify-center py-16 px-6 text-center text-muted-foreground">
+            <div className="p-3 bg-muted/40 rounded-full mb-3">
+              <MessageSquareDashed className="h-6 w-6 opacity-40 stroke-[1.5]" />
+            </div>
+            <p className="text-sm font-medium">No conversations yet</p>
+            <p className="text-xs text-muted-foreground/70 mt-1 max-w-[200px]">
+              Find users using the lookup field above to start chatting.
+            </p>
           </div>
         ) : (
           <div className="p-2 space-y-1">
@@ -295,19 +404,19 @@ export default function ChatSidebar() {
                 <button
                   key={conversation.id}
                   onClick={() => handleSelectConversation(conversation)}
-                  className={`w-full flex items-start gap-3 p-3 rounded-lg transition-colors text-left ${
+                  className={`w-full flex items-start gap-3 p-3 rounded-xl transition-all text-left ${
                     isSelected
                       ? "bg-primary/10 text-primary hover:bg-primary/15"
-                      : "hover:bg-accent hover:text-accent-foreground"
+                      : "hover:bg-muted/60 hover:text-foreground"
                   }`}
                 >
-                  <div className="relative flex-shrink-0 mt-0.5">
-                    <Avatar className="h-10 w-10 border border-border/50">
+                  <div className="relative shrink-0 mt-0.5">
+                    <Avatar className="h-10 w-10 border border-border/40">
                       <AvatarImage
-                        src={conversation.otherUser?.avatar_url || ""}
+                        src={conversation.otherUser?.avatar_url || undefined}
                         alt={conversation.otherUser?.username}
                       />
-                      <AvatarFallback className="bg-primary/10 text-primary">
+                      <AvatarFallback className="bg-primary/10 text-primary font-medium">
                         {conversation.otherUser?.username?.[0]?.toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
@@ -321,12 +430,12 @@ export default function ChatSidebar() {
                       <p className={`text-sm font-semibold truncate ${isSelected ? "text-primary" : "text-foreground"}`}>
                         {conversation.otherUser?.username}
                       </p>
-                      <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                      <span className="text-[10px] text-muted-foreground/80 font-medium whitespace-nowrap">
                         {formatTime(conversation.lastMessageAt)}
                       </span>
                     </div>
 
-                    <p className="text-xs text-muted-foreground truncate leading-snug">
+                    <p className="text-xs text-muted-foreground truncate leading-normal">
                       {truncateMessage(conversation.lastMessage)}
                     </p>
                   </div>
