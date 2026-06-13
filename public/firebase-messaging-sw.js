@@ -17,7 +17,6 @@ firebase.initializeApp({
 
 const messaging =
   firebase.messaging();
-
 messaging.onBackgroundMessage(
   (payload) => {
     self.registration.showNotification(
@@ -31,13 +30,14 @@ messaging.onBackgroundMessage(
             .avatarUrl ||
           "/icon-192.png",
 
-        image:
-          payload.data
-            .avatarUrl ||
-          undefined,
-
         badge:
           "/icon-192.png",
+
+        tag:
+          payload.data
+            .conversationId,
+
+        renotify: true,
 
         data: {
           conversationId:
@@ -45,6 +45,19 @@ messaging.onBackgroundMessage(
               .conversationId,
         },
       }
+    );
+  }
+);
+
+self.addEventListener(
+  "notificationclick",
+  (event) => {
+    event.notification.close();
+
+    event.waitUntil(
+      clients.openWindow(
+        `/chat?conversation=${event.notification.data.conversationId}`
+      )
     );
   }
 );
