@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/client";
 
 const supabase = createClient();
+let typingChannels = {};
 
 /* =========================
    AUTH
@@ -243,6 +244,7 @@ export function subscribeToMessages(
 ) {
   const channel = supabase
     .channel(`messages-${conversationId}`)
+
     .on(
       "postgres_changes",
       {
@@ -255,6 +257,20 @@ export function subscribeToMessages(
         callback(payload.new);
       }
     )
+
+    .on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "messages",
+        filter: `conversation_id=eq.${conversationId}`,
+      },
+      (payload) => {
+        callback(payload.new);
+      }
+    )
+
     .subscribe();
 
   return channel;
@@ -294,8 +310,25 @@ export function subscribeToConversations(
   return channel;
 }
 
-export function unsubscribe(channel) {
-  supabase.removeChannel(channel);
+export function unsubscribe(
+  channel
+) {
+  if (!channel) return;
+
+  Object.keys(
+    typingChannels
+  ).forEach((key) => {
+    if (
+      typingChannels[key] ===
+      channel
+    ) {
+      delete typingChannels[key];
+    }
+  });
+
+  supabase.removeChannel(
+    channel
+  );
 }
 
 /* =========================
@@ -350,4 +383,165 @@ export function subscribeToProfiles(callback) {
     .subscribe();
 
   return channel;
+}
+
+
+export async function getCurrentProfile() {
+  const user = await getCurrentUser();
+
+  if (!user) return null;
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", user.id)
+    .single();
+
+  if (error) throw error;
+
+  return data;
+}
+
+export async function updateProfile(data) {
+  const user = await getCurrentUser();
+
+  if (!user) return null;
+
+  const { data: profile, error } =
+    await supabase
+      .from("profiles")
+      .update(data)
+      .eq("id", user.id)
+      .select()
+      .single();
+
+  if (error) throw error;
+
+  return profile;
+}
+
+export async function uploadAvatar(file) {
+  const user = await getCurrentUser();
+
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  const allowedTypes = [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+  ];
+
+  if (!allowedTypes.includes(file.type)) {
+    throw new Error(
+      "Only JPG, PNG and WEBP allowed"
+    );
+  }
+
+  if (file.size > 5 * 1024 * 1024) {
+    throw new Error(
+      "File size must be below 5MB"
+    );
+  }
+
+  const fileExt =
+    file.name.split(".").pop();
+
+  const filePath =
+    `${user.id}/avatar.${fileExt}`;
+
+  const { error } = await supabase.storage
+    .from("avatars")
+    .upload(filePath, file, {
+      upsert: true,
+    });
+
+  if (error) throw error;
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage
+    .from("avatars")
+    .getPublicUrl(filePath);
+
+  await updateProfile({
+    avatar_url: publicUrl,
+  });
+
+  return publicUrl;
+}
+
+export async function markMessagesAsRead(
+  conversationId,
+  currentUserId
+) {
+  const { error } =
+    await supabase
+      .from("messages")
+      .update({
+        is_read: true,
+        read_at:
+          new Date().toISOString(),
+      })
+      .eq(
+        "conversation_id",
+        conversationId
+      )
+      .neq(
+        "sender_id",
+        currentUserId
+      )
+      .eq("is_read", false);
+
+  if (error) throw error;
+}
+
+export function subscribeToTyping(
+  conversationId,
+  callback
+) {
+  const channel = supabase
+    .channel(
+      `typing-${conversationId}`
+    )
+    .on(
+      "broadcast",
+      {
+        event: "typing",
+      },
+      ({ payload }) => {
+        callback(payload);
+      }
+    );
+
+  channel.subscribe();
+
+  typingChannels[
+    conversationId
+  ] = channel;
+
+  return channel;
+}
+
+export async function sendTypingEvent(
+  conversationId,
+  userId,
+  isTyping
+) {
+  const channel =
+    typingChannels[
+      conversationId
+    ];
+
+  if (!channel) return;
+
+  await channel.send({
+    type: "broadcast",
+    event: "typing",
+    payload: {
+      userId,
+      isTyping,
+    },
+  });
 }

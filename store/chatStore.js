@@ -9,6 +9,7 @@ const useChatStore = create((set) => ({
   messages: [],
 
   profiles: {},
+  typingUsers: {},
 
   setCurrentUserId: (id) =>
     set({
@@ -60,19 +61,39 @@ const useChatStore = create((set) => ({
     }),
 
   addMessage: (message) =>
-    set((state) => {
-      const exists = state.messages.some(
+  set((state) => {
+    const existingIndex =
+      state.messages.findIndex(
         (msg) => msg.id === message.id
       );
 
-      if (exists) {
-        return state;
-      }
+    if (existingIndex !== -1) {
+      const updatedMessages = [
+        ...state.messages,
+      ];
+
+      updatedMessages[
+        existingIndex
+      ] = {
+        ...updatedMessages[
+          existingIndex
+        ],
+        ...message,
+      };
 
       return {
-        messages: [...state.messages, message],
+        messages:
+          updatedMessages,
       };
-    }),
+    }
+
+    return {
+      messages: [
+        ...state.messages,
+        message,
+      ],
+    };
+  }),
 
   setProfiles: (profiles) =>
     set({
@@ -89,6 +110,28 @@ const useChatStore = create((set) => ({
         },
       },
     })),
+
+
+  setTyping: (userId, isTyping) =>
+      set((state) => ({
+        typingUsers: {
+          ...state.typingUsers,
+          [userId]: isTyping,
+        },
+      })),
+
+    clearTyping: (userId) =>
+      set((state) => {
+        const updated = {
+          ...state.typingUsers,
+        };
+
+        delete updated[userId];
+
+        return {
+          typingUsers: updated,
+        };
+  }),
 }));
 
 export default useChatStore;
